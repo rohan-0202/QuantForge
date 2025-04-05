@@ -80,6 +80,19 @@ class PortfolioPosition:
             return 0.0
         return (price - self.open_transaction.price) * self.open_transaction.quantity
 
+    def position_value(self, price: float) -> float:
+        """
+        Calculate the current market value of the position at a given price.
+        Formula: current_price * quantity
+
+        Notes:
+        - Returns 0 if position is closed
+        - This represents the total current market value of the position
+        """
+        if self.is_closed:
+            return 0.0
+        return price * self.open_transaction.quantity
+
     def close(self, close_transaction: Transaction) -> "PortfolioPosition":
         """
         Close the position with a close transaction and return a new frozen instance.
