@@ -1,10 +1,11 @@
 import pytest
 from datetime import date
 from quantforge.qtypes.transaction import Transaction
-from quantforge.qtypes.tradeableitem import TradeableItem
+from quantforge.qtypes.tradeable_item import TradeableItem
 from quantforge.qtypes.assetclass import AssetClass
 
 
+@pytest.mark.unit
 class TestTransaction:
     """Tests for the Transaction class."""
 

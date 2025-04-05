@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import date
 
-from quantforge.qtypes.tradeableitem import TradeableItem
+from quantforge.qtypes.tradeable_item import TradeableItem
 
 
 @dataclass(frozen=True)

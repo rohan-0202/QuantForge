@@ -1,8 +1,9 @@
 import pytest
-from quantforge.qtypes.tradeableitem import TradeableItem
+from quantforge.qtypes.tradeable_item import TradeableItem
 from quantforge.qtypes.assetclass import AssetClass
 
 
+@pytest.mark.unit
 class TestTradeableItem:
     """Tests for the TradeableItem class."""
 
