@@ -7,6 +7,9 @@ dev:
 clean-venv:
 	rm -rf .venv
 
+lint-fix:
+	uv run ruff check --fix
+
 recreate-venv: clean-venv dev
 	@echo "Virtual environment has been recreated."
 	@echo "Run this command in your shell: source .venv/bin/activate"
