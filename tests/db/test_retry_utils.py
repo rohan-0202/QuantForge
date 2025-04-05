@@ -7,7 +7,7 @@ from unittest.mock import patch, Mock, call
 # Add project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from src.db.retry_utils import retry_on_rate_limit
+from src.quantforge.db.retry_utils import retry_on_rate_limit
 
 
 @pytest.mark.unit

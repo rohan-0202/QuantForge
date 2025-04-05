@@ -11,8 +11,8 @@ import numpy as np
 # Add project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from src.db.create_database import create_stock_database
-from src.db.data_insertion import (
+from src.quantforge.db.create_database import create_stock_database
+from src.quantforge.db.data_insertion import (
     parse_db_datetime,
     get_earliest_data_date_from_history,
     save_ticker_info,
@@ -80,7 +80,7 @@ class TestDataInsertion:
 
     def test_get_earliest_data_date_from_history(self):
         """Test getting the earliest data date from history."""
-        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
+        with patch('src.quantforge.db.data_insertion.yf.Ticker') as mock_ticker:
             # Create a mock Ticker instance
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
@@ -101,7 +101,7 @@ class TestDataInsertion:
 
     def test_save_ticker_info(self, test_db):
         """Test saving ticker info to the database."""
-        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
+        with patch('src.quantforge.db.data_insertion.yf.Ticker') as mock_ticker:
             # Create a mock Ticker instance
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
@@ -133,8 +133,8 @@ class TestDataInsertion:
 
     def test_save_historical_data_new_ticker(self, test_db):
         """Test saving historical data for a new ticker."""
-        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
-            with patch('src.db.data_insertion.get_earliest_data_date_from_history') as mock_get_earliest:
+        with patch('src.quantforge.db.data_insertion.yf.Ticker') as mock_ticker:
+            with patch('src.quantforge.db.data_insertion.get_earliest_data_date_from_history') as mock_get_earliest:
                 # Set up mock earliest date
                 mock_get_earliest.return_value = date(2010, 1, 1)
                 
@@ -177,7 +177,7 @@ class TestDataInsertion:
 
     def test_save_financial_metrics(self, test_db):
         """Test saving financial metrics."""
-        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
+        with patch('src.quantforge.db.data_insertion.yf.Ticker') as mock_ticker:
             # Create a mock Ticker instance
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
@@ -254,7 +254,7 @@ class TestDataInsertion:
 
     def test_save_options_data(self, test_db):
         """Test saving options data."""
-        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
+        with patch('src.quantforge.db.data_insertion.yf.Ticker') as mock_ticker:
             # Create a mock Ticker instance
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
@@ -314,7 +314,7 @@ class TestDataInsertion:
 
     def test_save_recent_news(self, test_db):
         """Test saving recent news."""
-        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
+        with patch('src.quantforge.db.data_insertion.yf.Ticker') as mock_ticker:
             # Create a mock Ticker instance
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
@@ -352,15 +352,15 @@ class TestDataInsertion:
     def test_save_all_data_for_ticker(self, test_db):
         """Test saving all data for a ticker."""
         with patch(
-            "src.db.data_insertion.save_ticker_info"
+            "src.quantforge.db.data_insertion.save_ticker_info"
         ) as mock_save_ticker, patch(
-            "src.db.data_insertion.save_historical_data"
+            "src.quantforge.db.data_insertion.save_historical_data"
         ) as mock_save_hist, patch(
-            "src.db.data_insertion.save_financial_metrics"
+            "src.quantforge.db.data_insertion.save_financial_metrics"
         ) as mock_save_fin, patch(
-            "src.db.data_insertion.save_options_data"
+            "src.quantforge.db.data_insertion.save_options_data"
         ) as mock_save_opts, patch(
-            "src.db.data_insertion.save_recent_news"
+            "src.quantforge.db.data_insertion.save_recent_news"
         ) as mock_save_news:
             
             # Set all mocks to return None (success)
