@@ -1,4 +1,5 @@
 import os
+import sys
 import sqlite3
 import pytest
 from datetime import datetime, date, timedelta, timezone
@@ -7,8 +8,11 @@ from unittest.mock import patch, Mock, MagicMock
 import pandas as pd
 import numpy as np
 
-from db.create_database import create_stock_database
-from db.data_insertion import (
+# Add project root to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
+from src.db.create_database import create_stock_database
+from src.db.data_insertion import (
     parse_db_datetime,
     get_earliest_data_date_from_history,
     save_ticker_info,
@@ -76,7 +80,7 @@ class TestDataInsertion:
 
     def test_get_earliest_data_date_from_history(self):
         """Test getting the earliest data date from history."""
-        with patch('db.data_insertion.yf.Ticker') as mock_ticker:
+        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
             # Create a mock Ticker instance
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
@@ -97,7 +101,7 @@ class TestDataInsertion:
 
     def test_save_ticker_info(self, test_db):
         """Test saving ticker info to the database."""
-        with patch('db.data_insertion.yf.Ticker') as mock_ticker:
+        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
             # Create a mock Ticker instance
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
@@ -129,8 +133,8 @@ class TestDataInsertion:
 
     def test_save_historical_data_new_ticker(self, test_db):
         """Test saving historical data for a new ticker."""
-        with patch('db.data_insertion.yf.Ticker') as mock_ticker:
-            with patch('db.data_insertion.get_earliest_data_date_from_history') as mock_get_earliest:
+        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
+            with patch('src.db.data_insertion.get_earliest_data_date_from_history') as mock_get_earliest:
                 # Set up mock earliest date
                 mock_get_earliest.return_value = date(2010, 1, 1)
                 
@@ -173,7 +177,7 @@ class TestDataInsertion:
 
     def test_save_financial_metrics(self, test_db):
         """Test saving financial metrics."""
-        with patch('db.data_insertion.yf.Ticker') as mock_ticker:
+        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
             # Create a mock Ticker instance
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
@@ -250,7 +254,7 @@ class TestDataInsertion:
 
     def test_save_options_data(self, test_db):
         """Test saving options data."""
-        with patch('db.data_insertion.yf.Ticker') as mock_ticker:
+        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
             # Create a mock Ticker instance
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
@@ -310,7 +314,7 @@ class TestDataInsertion:
 
     def test_save_recent_news(self, test_db):
         """Test saving recent news."""
-        with patch('db.data_insertion.yf.Ticker') as mock_ticker:
+        with patch('src.db.data_insertion.yf.Ticker') as mock_ticker:
             # Create a mock Ticker instance
             mock_ticker_instance = MagicMock()
             mock_ticker.return_value = mock_ticker_instance
@@ -347,28 +351,34 @@ class TestDataInsertion:
 
     def test_save_all_data_for_ticker(self, test_db):
         """Test saving all data for a ticker."""
-        with patch('db.data_insertion.save_ticker_info') as mock_ticker_info, \
-             patch('db.data_insertion.save_historical_data') as mock_historical, \
-             patch('db.data_insertion.save_financial_metrics') as mock_financials, \
-             patch('db.data_insertion.save_options_data') as mock_options, \
-             patch('db.data_insertion.save_recent_news') as mock_news:
+        with patch(
+            "src.db.data_insertion.save_ticker_info"
+        ) as mock_save_ticker, patch(
+            "src.db.data_insertion.save_historical_data"
+        ) as mock_save_hist, patch(
+            "src.db.data_insertion.save_financial_metrics"
+        ) as mock_save_fin, patch(
+            "src.db.data_insertion.save_options_data"
+        ) as mock_save_opts, patch(
+            "src.db.data_insertion.save_recent_news"
+        ) as mock_save_news:
             
             # Set all mocks to return None (success)
-            mock_ticker_info.return_value = None
-            mock_historical.return_value = None
-            mock_financials.return_value = None
-            mock_options.return_value = None
-            mock_news.return_value = None
+            mock_save_ticker.return_value = None
+            mock_save_hist.return_value = None
+            mock_save_fin.return_value = None
+            mock_save_opts.return_value = None
+            mock_save_news.return_value = None
             
             # Call the function
             result = save_all_data_for_ticker('AAPL', test_db)
             
             # Verify all functions were called with correct arguments
-            mock_ticker_info.assert_called_once_with('AAPL', test_db)
-            mock_historical.assert_called_once_with('AAPL', period='max', db_name=test_db)
-            mock_financials.assert_called_once_with('AAPL', test_db)
-            mock_options.assert_called_once_with('AAPL', test_db)
-            mock_news.assert_called_once_with('AAPL', test_db)
+            mock_save_ticker.assert_called_once_with('AAPL', test_db)
+            mock_save_hist.assert_called_once_with('AAPL', period='max', db_name=test_db)
+            mock_save_fin.assert_called_once_with('AAPL', test_db)
+            mock_save_opts.assert_called_once_with('AAPL', test_db)
+            mock_save_news.assert_called_once_with('AAPL', test_db)
             
             # Verify the function returned True
             assert result is True

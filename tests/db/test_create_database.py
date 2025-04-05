@@ -1,10 +1,14 @@
 import os
+import sys
 import sqlite3
 import pytest
 from unittest.mock import patch
 
+# Add project root to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 # Import the function from the db module
-from db.create_database import create_stock_database
+from src.db.create_database import create_stock_database
 
 
 @pytest.mark.unit
@@ -98,7 +102,7 @@ class TestCreateDatabase:
     
     def test_success_message(self, test_db):
         """Test if success message is printed."""
-        with patch('db.create_database.print') as mock_print:
+        with patch('src.db.create_database.print') as mock_print:
             create_stock_database(test_db)
             
             # Check if the success message was printed

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import click
 import yfinance as yf
 
-from db.retry_utils import retry_on_rate_limit
+from src.db.retry_utils import retry_on_rate_limit
 
 
 def parse_db_datetime(date_str):

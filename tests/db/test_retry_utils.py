@@ -1,8 +1,13 @@
+import os
+import sys
+import time
 import pytest
 from unittest.mock import patch, Mock, call
-import time
 
-from db.retry_utils import retry_on_rate_limit
+# Add project root to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
+from src.db.retry_utils import retry_on_rate_limit
 
 
 @pytest.mark.unit
