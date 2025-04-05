@@ -176,3 +176,5 @@ cython_debug/
 
 poetry.lock
 activate/
+stock_data.db
+.vscode/

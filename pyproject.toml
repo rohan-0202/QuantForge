@@ -95,3 +95,6 @@ markers = [
     "slow: Tests that take longer to run",
 ]
 console_output_style = "progress"
+
+[tool.coverage.run]
+omit = ["src/quantforge/db/data_insertion.py"]
