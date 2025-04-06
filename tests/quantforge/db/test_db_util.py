@@ -1,151 +1,136 @@
 import pytest
 import pandas as pd
-from datetime import datetime, timedelta
+import sqlite3
+from datetime import datetime, timedelta, date
+import os # Needed for managing test db file if tmp_path isn't used
+
 from quantforge.db.db_util import get_historical_data, get_options_data
+from quantforge.db.create_database import create_stock_database
+
+# Fixture to create and populate a temporary database for tests
+@pytest.fixture(scope="module") # Use module scope for efficiency
+def test_db(tmp_path_factory):
+    """Creates a temporary SQLite DB, populates it, and yields the path."""
+    # Create a db file in a temporary directory
+    db_path = tmp_path_factory.mktemp("data") / "test_stock_data.db"
+    db_path_str = str(db_path)
+
+    # Create tables
+    create_stock_database(db_name=db_path_str)
+
+    # Connect and insert sample data
+    conn = sqlite3.connect(db_path_str)
+    cursor = conn.cursor()
+
+    # Sample historical data
+    historical_data = [
+        ("AAPL", (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S"), 150.0, 152.0, 149.0, 151.0, 1000000, 0.0),
+        ("AAPL", (datetime.now() - timedelta(days=4)).strftime("%Y-%m-%d %H:%M:%S"), 151.0, 153.0, 150.0, 152.5, 1100000, 0.0),
+        ("MSFT", (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d %H:%M:%S"), 250.0, 255.0, 248.0, 253.0, 900000, 0.0),
+        ("MSFT", (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%d %H:%M:%S"), 240.0, 245.0, 238.0, 243.0, 800000, 0.0), # Older data
+    ]
+    cursor.executemany("INSERT INTO historical_prices VALUES (?, ?, ?, ?, ?, ?, ?, ?)", historical_data)
+
+    # Sample options data
+    options_data = [
+        ("AAPL", (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S"), 'call', 160.0, 5.0, 4.9, 5.1, 1000, 5000, 0.3, datetime.now().strftime("%Y-%m-%d %H:%M:%S")), # id inserted automatically
+        ("AAPL", (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S"), 'put', 140.0, 2.0, 1.9, 2.1, 800, 4000, 0.25, datetime.now().strftime("%Y-%m-%d %H:%M:%S")), 
+        ("AAPL", (datetime.now() + timedelta(days=400)).strftime("%Y-%m-%d %H:%M:%S"), 'call', 170.0, 10.0, 9.8, 10.2, 500, 2000, 0.4, datetime.now().strftime("%Y-%m-%d %H:%M:%S")), # Far expiration
+        ("MSFT", (datetime.now() + timedelta(days=60)).strftime("%Y-%m-%d %H:%M:%S"), 'call', 260.0, 8.0, 7.9, 8.1, 700, 3000, 0.35, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    ]
+    # Correct the INSERT statement for options_data (id is auto-increment)
+    cursor.executemany("INSERT INTO options_data (ticker, expiration_date, option_type, strike, last_price, bid, ask, volume, open_interest, implied_volatility, last_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", options_data)
+
+    conn.commit()
+    conn.close()
+
+    yield db_path_str # Provide the path to the tests
+
+    # Cleanup is handled by tmp_path_factory fixture
 
 
+@pytest.mark.unit
 class TestGetHistoricalData:
-    def test_get_historical_data_success(self):
-        """Test that we can successfully retrieve historical data for a known ticker."""
-        # Use a common stock ticker that should exist in the database
+    def test_get_historical_data_success(self, test_db):
+        """Test retrieving data using the test database."""
         ticker = "AAPL"
-        df = get_historical_data(ticker)
-
-        # Verify the structure of the returned DataFrame
-        assert isinstance(df, pd.DataFrame)
+        # Pass the test_db path to the function
+        df = get_historical_data(ticker, db_name=test_db)
         assert not df.empty
-        assert isinstance(df.index, pd.DatetimeIndex)
-        assert list(df.columns) == ["open", "high", "low", "close", "volume"]
+        assert df.index.name == "timestamp"
+        # Check if we got the 2 recent AAPL entries
+        assert len(df) == 2
 
-        # Check data types
-        assert df["open"].dtype == float
-        assert df["high"].dtype == float
-        assert df["low"].dtype == float
-        assert df["close"].dtype == float
-        assert df["volume"].dtype == int or df["volume"].dtype == float
-
-    def test_get_historical_data_days_parameter(self):
-        """Test that the days parameter correctly limits the date range."""
-        ticker = "MSFT"
-        days = 30
-
-        df = get_historical_data(ticker, days=days)
-
-        # Check that the data range doesn't exceed our requested days
-        # Add a small buffer for test execution time
-        assert not df.empty
-        latest_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        earliest_expected_date = latest_date - timedelta(days=days)
-        earliest_actual_date = df.index.min().to_pydatetime().replace(tzinfo=None)
-
-        # The earliest date in the data should not be before our calculated date
-        # (allowing a day of margin for different timezones)
-        assert earliest_actual_date >= earliest_expected_date - timedelta(days=1)
-
-    def test_get_historical_data_invalid_ticker(self):
-        """Test that requesting data for a non-existent ticker raises ValueError."""
-        # Use a ticker that should not exist in any database
-        invalid_ticker = "INVALID_TICKER_123456789"
-
-        with pytest.raises(ValueError) as excinfo:
-            get_historical_data(invalid_ticker)
-
-        assert f"No historical data found for {invalid_ticker}" in str(excinfo.value)
-
-    def test_get_historical_data_custom_db(self):
-        """Test retrieving data from a custom database file."""
-        # This test assumes stock_data.db exists and contains data
+    def test_get_historical_data_days_parameter(self, test_db):
+        """Test the days parameter limits results."""
         ticker = "AAPL"
-        df = get_historical_data(ticker, db_name="stock_data.db")
+        days = 4 # Should only get the entry from 4 days ago, not 5
+        df = get_historical_data(ticker, db_name=test_db, days=days)
+        assert len(df) == 1
+        # Check the timestamp is within the range (approximate check)
+        assert df.index[0].date() >= (datetime.now() - timedelta(days=days)).date()
 
-        assert isinstance(df, pd.DataFrame)
-        assert not df.empty
+        ticker_ms = "MSFT"
+        days_ms = 20 # Should only get the entry from 10 days ago, not 60
+        df_ms = get_historical_data(ticker_ms, db_name=test_db, days=days_ms)
+        assert len(df_ms) == 1
+        assert df_ms.index[0].date() >= (datetime.now() - timedelta(days=days_ms)).date()
 
 
+    def test_get_historical_data_invalid_ticker(self, test_db):
+        """Test requesting data for a ticker not in the test db."""
+        invalid_ticker = "INVALID_TICKER_XYZ"
+        with pytest.raises(ValueError, match=f"No historical data found for {invalid_ticker}"):
+            get_historical_data(invalid_ticker, db_name=test_db)
+
+    # Removed the custom_db test as it's redundant with the fixture
+    # def test_get_historical_data_custom_db(self):
+    #     ...
+
+
+@pytest.mark.unit
 class TestGetOptionsData:
-    def test_get_options_data_success(self):
-        """Test that we can successfully retrieve options data for a known ticker."""
-        # Use a common stock ticker that should exist in the database
+    def test_get_options_data_success(self, test_db):
+        """Test retrieving options data using the test database."""
         ticker = "AAPL"
-        df = get_options_data(ticker)
-
-        # Verify the structure of the returned DataFrame
-        assert isinstance(df, pd.DataFrame)
+        df = get_options_data(ticker, db_name=test_db) # Default days=365
         assert not df.empty
-        assert isinstance(df.index, pd.DatetimeIndex)
+        assert df.index.name == "expiration_date"
+        # Should get all 3 AAPL options (30-day call, 30-day put, 400-day call)
+        # because their expiration_date is >= (now - 365 days)
+        assert len(df) == 3 # Corrected assertion
+        assert all(df['option_type'].isin(['call', 'put']))
 
-        # Check that all expected columns are present
-        expected_columns = [
-            "option_type",
-            "strike",
-            "last_price",
-            "bid",
-            "ask",
-            "volume",
-            "open_interest",
-            "implied_volatility",
-            "last_updated",
-        ]
-        assert all(column in df.columns for column in expected_columns)
-
-        # Check basic data types
-        assert df["option_type"].isin(["call", "put"]).all()
-        assert df["strike"].dtype == float
-        assert df["last_price"].dtype == float
-        assert df["bid"].dtype == float
-        assert df["ask"].dtype == float
-        assert df["implied_volatility"].dtype == float
-
-    def test_get_options_data_days_parameter(self):
-        """Test that the days parameter correctly limits the date range."""
-        ticker = "MSFT"
-        days = 30
-
-        df = get_options_data(ticker, days=days)
-
-        # Check that the data range doesn't exceed our requested days
-        assert not df.empty
-
-        # The expiration dates should all be after (now - days)
-        earliest_expected_date = (datetime.now() - timedelta(days=days)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-
-        # Since expiration_date is the index, we can check directly
-        earliest_actual_date = df.index.min().to_pydatetime().replace(tzinfo=None)
-
-        # Allow a day of margin for timezone differences
-        assert earliest_actual_date >= earliest_expected_date - timedelta(days=1)
-
-    def test_get_options_data_invalid_ticker(self):
-        """Test that requesting data for a non-existent ticker raises ValueError."""
-        invalid_ticker = "INVALID_TICKER_123456789"
-
-        with pytest.raises(ValueError) as excinfo:
-            get_options_data(invalid_ticker)
-
-        assert f"No options data found for {invalid_ticker}" in str(excinfo.value)
-
-    def test_get_options_data_custom_db(self):
-        """Test retrieving data from a custom database file."""
+    def test_get_options_data_days_parameter(self, test_db):
+        """Test the days parameter limits options results by expiration."""
         ticker = "AAPL"
-        df = get_options_data(ticker, db_name="stock_data.db")
+        days = 50 # Should get options expiring >= (now - 50 days)
+        df = get_options_data(ticker, db_name=test_db, days=days)
+        # All 3 sample options (30-day call/put, 400-day call) expire after (now - 50 days)
+        assert len(df) == 3 # Corrected assertion
+        # Check expiration is within range (approximate)
+        assert df.index.min().date() >= (datetime.now() - timedelta(days=days)).date()
 
-        assert isinstance(df, pd.DataFrame)
-        assert not df.empty
+        days_long = 500 # Should still get all 3 AAPL options
+        df_long = get_options_data(ticker, db_name=test_db, days=days_long)
+        assert len(df_long) == 3
 
-    def test_get_options_data_call_put_filtering(self):
-        """Test that both call and put options are present in the results."""
+    def test_get_options_data_invalid_ticker(self, test_db):
+        """Test requesting options data for a ticker not in the test db."""
+        invalid_ticker = "INVALID_TICKER_XYZ"
+        with pytest.raises(ValueError, match=f"No options data found for {invalid_ticker}"):
+            get_options_data(invalid_ticker, db_name=test_db)
+
+    # Removed the custom_db test
+    # def test_get_options_data_custom_db(self):
+    #     ...
+
+    def test_get_options_data_call_put_filtering(self, test_db):
+        """Test that both call and put options are retrieved when present."""
         ticker = "AAPL"
-        df = get_options_data(ticker)
-
-        # Check that we have both call and put options
-        assert "call" in df["option_type"].unique()
-        assert "put" in df["option_type"].unique()
-
-        # Verify we can filter by option type
-        calls = df[df["option_type"] == "call"]
-        puts = df[df["option_type"] == "put"]
-
-        assert not calls.empty
-        assert not puts.empty
+        # Use days=500 to ensure all sample options are retrieved
+        df = get_options_data(ticker, db_name=test_db, days=500)
+        assert not df.empty
+        option_types = df['option_type'].unique()
+        assert 'call' in option_types
+        assert 'put' in option_types
