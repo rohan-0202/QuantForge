@@ -86,8 +86,8 @@ def next_day_prices(apple_stock, microsoft_stock, start_date):
     """Return sample next day OHLC data as OHLCData objects."""
     next_day = start_date + timedelta(days=10) # Assume execution date
     return {
-        apple_stock.id: OHLCData(date=next_day, open=105.0, high=106.0, low=104.0, close=105.5),
-        microsoft_stock.id: OHLCData(date=next_day, open=95.0, high=96.0, low=94.0, close=95.5),
+        apple_stock: OHLCData(date=next_day, open=105.0, high=106.0, low=104.0, close=105.5),
+        microsoft_stock: OHLCData(date=next_day, open=95.0, high=96.0, low=94.0, close=95.5),
     }
 
 
@@ -188,8 +188,8 @@ class TestSimpleTickerDataStrategy:
         initial_cash = strategy.portfolio.cash
         cash_per_item = initial_cash / 2
 
-        apple_price = next_day_prices[apple_stock.id]['open']
-        msft_price = next_day_prices[microsoft_stock.id]['open']
+        apple_price = next_day_prices[apple_stock]['open']
+        msft_price = next_day_prices[microsoft_stock]['open']
 
         expected_apple_qty = int(cash_per_item // apple_price)
         expected_msft_qty = int(cash_per_item // msft_price)
@@ -211,10 +211,10 @@ class TestSimpleTickerDataStrategy:
             apple_stock: TradingSignal(TradingSignalType.BUY, 1.0),
             microsoft_stock: TradingSignal(TradingSignalType.BUY, 1.0)
         }
-        limited_next_day_prices = {apple_stock.id: next_day_prices[apple_stock.id]}
+        limited_next_day_prices = {apple_stock: next_day_prices[apple_stock]}
 
         initial_cash = strategy.portfolio.cash
-        apple_price = limited_next_day_prices[apple_stock.id]['open']
+        apple_price = limited_next_day_prices[apple_stock]['open']
 
         expected_apple_qty = int(initial_cash // apple_price)
 
@@ -228,7 +228,7 @@ class TestSimpleTickerDataStrategy:
     def test_execute_buy_signals(self, strategy, apple_stock, next_day_prices):
         """Test execution of buy signals."""
         initial_cash = strategy.portfolio.cash
-        apple_price = next_day_prices[apple_stock.id]['open']
+        apple_price = next_day_prices[apple_stock]['open']
         quantity_to_buy = 10
         allocated_quantities = {apple_stock: quantity_to_buy}
 
@@ -260,7 +260,7 @@ class TestSimpleTickerDataStrategy:
         assert strategy.portfolio.has_position(apple_stock)
 
         sell_signals = {apple_stock: TradingSignal(TradingSignalType.SELL, -1.0)}
-        sell_price = next_day_prices[apple_stock.id]['open']
+        sell_price = next_day_prices[apple_stock]['open']
 
         strategy.execute_sell_signals(sell_signals, next_day_prices)
 
@@ -289,7 +289,7 @@ class TestSimpleTickerDataStrategy:
             apple_stock: {DataRequirement.TICKER: sample_ticker_data_up}
         }
         initial_cash = strategy.portfolio.cash
-        apple_price = next_day_prices[apple_stock.id]['open']
+        apple_price = next_day_prices[apple_stock]['open']
 
         assert not strategy.portfolio.has_position(apple_stock)
 
@@ -322,7 +322,7 @@ class TestSimpleTickerDataStrategy:
         input_data: StrategyInputData = {
             apple_stock: {DataRequirement.TICKER: sample_ticker_data_down}
         }
-        sell_price = next_day_prices[apple_stock.id]['open']
+        sell_price = next_day_prices[apple_stock]['open']
 
         strategy.execute(input_data, next_day_prices)
 
@@ -339,7 +339,7 @@ class TestSimpleTickerDataStrategy:
             apple_stock: {DataRequirement.TICKER: sample_ticker_data_up}
         }
         initial_cash = strategy.portfolio.cash
-        apple_price = next_day_prices[apple_stock.id]['open']
+        apple_price = next_day_prices[apple_stock]['open']
 
         strategy.execute(input_data, next_day_prices)
 

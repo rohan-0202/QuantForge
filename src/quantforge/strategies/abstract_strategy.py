@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import TypeAlias
+from datetime import date
 
 import pandas as pd
 
@@ -39,43 +40,82 @@ class AbstractStrategy(ABC):
 
     @abstractmethod
     def execute_sell_signals(
-        self, trading_signals: dict[TradeableItem, TradingSignal]
+        self,
+        sell_signals: dict[TradeableItem, TradingSignal],
+        next_day_data: dict[TradeableItem, OHLCData],
     ) -> None:
         pass
 
     @abstractmethod
     def execute_buy_signals(
-        self, trading_signals: dict[TradeableItem, TradingSignal]
+        self,
+        allocated_quantities: dict[TradeableItem, int],
+        next_day_data: dict[TradeableItem, OHLCData],
     ) -> None:
         pass
 
     @abstractmethod
     def allocate_capital(
         self,
-        input_data: StrategyInputData,
         buy_signals: dict[TradeableItem, TradingSignal],
+        next_day_data: dict[TradeableItem, OHLCData],
     ) -> dict[TradeableItem, int]:
         pass
 
     def execute(
-        self, input_data: StrategyInputData, next_day_data: dict[str, OHLCData]
+        self, input_data: StrategyInputData, next_day_data: dict[TradeableItem, OHLCData]
     ) -> None:
-        # first ensure that we have all the data required to execute the strategy in the input_data
-        # for each tradeable item in the portfolio, check that we have all the data requireed to execute the strategy
-        for tradeable_item in self.portfolio.tradeable_items:
-            if tradeable_item not in input_data:
-                raise ValueError(f"Missing data for {tradeable_item}")
+        """Executes the strategy: validates data, generates signals, allocates capital, and executes trades."""
+        # --- Data Validation ---
+        required_data_valid = True
+        # Check data requirements only for items relevant to the strategy (in input_data)
+        # or potentially all allowed items if the strategy needs broader context (decision: check input_data keys)
+        items_to_check = list(input_data.keys()) 
+        # Alternatively: items_to_check = self.portfolio.allowed_tradeable_items
+        
+        for tradeable_item in items_to_check:
+            if tradeable_item not in input_data: 
+                # This case might be handled depending on strategy logic - skipping check if not in input
+                continue
             for data_requirement in self.get_data_requirements():
-                if data_requirement not in input_data[tradeable_item]:
-                    raise ValueError(
-                        f"Missing data for {data_requirement} for {tradeable_item}"
-                    )
+                if data_requirement not in input_data[tradeable_item] or input_data[tradeable_item][data_requirement] is None or input_data[tradeable_item][data_requirement].empty:
+                    required_data_valid = False
+                    # Optionally break or collect all errors
+                    break # Stop checking this item if data is missing
+            if not required_data_valid:
+                break # Stop checking other items if one failed validation
 
-        # now we can execute the strategy, generate the trading signals
+        if not required_data_valid:
+             print(f"Strategy {self.name} execution halted due to missing required data.")
+             return # Stop execution if data is missing
+        
+
+        # --- Signal Generation ---
         trading_signals = self.generate_signals(input_data)
+        if not trading_signals:
+            return
 
-        self.execute_sell_signals(trading_signals)
-        self.execute_buy_signals(trading_signals)
+        # --- Signal Separation ---
+        sell_signals = {item: sig for item, sig in trading_signals.items() if sig.signal_type == TradingSignalType.SELL}
+        buy_signals = {item: sig for item, sig in trading_signals.items() if sig.signal_type == TradingSignalType.BUY}
+
+        # --- Execute Sells --- 
+        if sell_signals:
+            self.execute_sell_signals(sell_signals, next_day_data)
+
+
+        # --- Allocate Capital for Buys ---
+        allocated_quantities = {}
+        if buy_signals:
+            allocated_quantities = self.allocate_capital(buy_signals, next_day_data)
+
+
+        # --- Execute Buys --- 
+        if allocated_quantities:
+            self.execute_buy_signals(allocated_quantities, next_day_data)
+
+
+        print(f"Strategy {self.name} execution complete. Final Cash: {self.portfolio.cash:.2f}")
 
 
 class SimpleTickerDataStrategy(AbstractStrategy):
@@ -119,50 +159,52 @@ class SimpleTickerDataStrategy(AbstractStrategy):
     def execute_sell_signals(
         self,
         sell_signals: dict[TradeableItem, TradingSignal],
-        next_day_data: dict[str, OHLCData],
+        next_day_data: dict[TradeableItem, OHLCData],
     ) -> None:
         """Executes sell signals using the next day's open price."""
         for tradeable_item, signal in sell_signals.items():
-            positions_to_close = self.portfolio._open_positions_by_tradeable_item.get(tradeable_item, [])
-            if positions_to_close:
-                # Specific check for missing data
-                if tradeable_item.id not in next_day_data:
-                    print(f"Warning: Missing next day price data for {tradeable_item.id}, cannot execute sell.")
-                    continue
-                
-                # Removed the broad try...except block here
-                next_day_price_info = next_day_data[tradeable_item.id]
-                sell_price = next_day_price_info['open']
-                sell_date = next_day_price_info['date']
+            positions_to_close = self.portfolio.get_open_positions_by_item(tradeable_item)
+            if not positions_to_close:
+                continue
 
-                for position in list(positions_to_close):
-                        close_transaction = Transaction(
-                            tradeable_item=tradeable_item,
-                            quantity=-position.open_transaction.quantity,
-                            price=sell_price,
-                            date=sell_date,
-                            transaction_cost=0.0,
-                        )
-                        # Let errors from close_position propagate
-                        self.portfolio.close_position(position, close_transaction)
+            # Check for missing data using the TradeableItem key
+            if tradeable_item not in next_day_data:
+                print(f"Warning: Missing next day price data for {tradeable_item}, cannot execute sell.")
+                continue
+
+            # Access using TradeableItem key
+            next_day_price_info = next_day_data[tradeable_item]
+            sell_price = next_day_price_info['open']
+            sell_date = next_day_price_info['date']
+
+            for position in list(positions_to_close):
+                    close_transaction = Transaction(
+                        tradeable_item=tradeable_item,
+                        quantity=-position.open_transaction.quantity,
+                        price=sell_price,
+                        date=sell_date,
+                        transaction_cost=0.0,
+                    )
+                    # Let errors from close_position propagate
+                    self.portfolio.close_position(position, close_transaction)
 
     def execute_buy_signals(
         self,
         allocated_quantities: dict[TradeableItem, int],
-        next_day_data: dict[str, OHLCData],
+        next_day_data: dict[TradeableItem, OHLCData],
     ) -> None:
         """Executes buy signals based on allocated quantities using the next day's open price."""
         for tradeable_item, quantity in allocated_quantities.items():
             if quantity <= 0:
                 continue
 
-            # Specific check for missing data
-            if tradeable_item.id not in next_day_data:
-                print(f"Warning: Missing next day price data for {tradeable_item.id}, cannot execute buy.")
+            # Specific check for missing data using TradeableItem key
+            if tradeable_item not in next_day_data:
+                print(f"Warning: Missing next day price data for {tradeable_item}, cannot execute buy.")
                 continue
             
-            # Removed the broad try...except block here
-            next_day_price_info = next_day_data[tradeable_item.id]
+            # Access using TradeableItem key
+            next_day_price_info = next_day_data[tradeable_item]
             buy_price = next_day_price_info['open']
             buy_date = next_day_price_info['date']
 
@@ -181,7 +223,7 @@ class SimpleTickerDataStrategy(AbstractStrategy):
     def allocate_capital(
         self,
         buy_signals: dict[TradeableItem, TradingSignal],
-        next_day_data: dict[str, OHLCData],
+        next_day_data: dict[TradeableItem, OHLCData],
     ) -> dict[TradeableItem, int]:
         """Allocates capital equally among buy signals based on available cash and next day's prices."""
         allocated_quantities: dict[TradeableItem, int] = {}
@@ -197,9 +239,10 @@ class SimpleTickerDataStrategy(AbstractStrategy):
         prices = {}
         valid_buy_items = []
         for item in buy_items:
-             if item.id in next_day_data:
-                 # Use dictionary key access
-                 price = next_day_data[item.id]['open']
+             # Check using TradeableItem key
+             if item in next_day_data:
+                 # Access using TradeableItem key
+                 price = next_day_data[item]['open']
                  if price > 0:
                      prices[item] = price
                      valid_buy_items.append(item)
@@ -227,52 +270,3 @@ class SimpleTickerDataStrategy(AbstractStrategy):
         allocated_quantities = temp_allocations
 
         return allocated_quantities
-
-    def execute(
-        self, input_data: StrategyInputData, next_day_data: dict[str, OHLCData]
-    ) -> None:
-        """Overrides base execute to pass next_day_data to relevant methods."""
-        # --- Data Validation ---
-        required_data_valid = True
-        # Check data requirements only for items we might trade (in portfolio's allowed list)
-        for tradeable_item in self.portfolio.allowed_tradeable_items:
-            # It's okay if input_data doesn't contain *every* allowed item,
-            # but if it *is* present, it must have the required data types.
-            if tradeable_item in input_data:
-                for data_requirement in self.get_data_requirements():
-                    if data_requirement not in input_data[tradeable_item]:
-                        required_data_valid = False
-                        # Decide if you want to stop execution or just skip this item
-                        # For now, let's log error and prevent execution
-
-        if not required_data_valid:
-             print(f"Strategy {self.name} execution halted due to missing required data.") # Basic print
-             return # Stop execution if data is missing
-
-        # --- Signal Generation ---
-        trading_signals = self.generate_signals(input_data)
-        if not trading_signals:
-            return
-
-        # --- Signal Separation ---
-        sell_signals = {item: sig for item, sig in trading_signals.items() if sig.signal_type == TradingSignalType.SELL}
-        buy_signals = {item: sig for item, sig in trading_signals.items() if sig.signal_type == TradingSignalType.BUY}
-
-        # --- Execute Sells ---
-        if sell_signals:
-            self.execute_sell_signals(sell_signals, next_day_data)
-
-
-        # --- Allocate Capital for Buys ---
-        if buy_signals:
-            allocated_quantities = self.allocate_capital(buy_signals, next_day_data)
-        else:
-            allocated_quantities = {} # No buys, so no allocation needed
-
-
-        # --- Execute Buys ---
-        if allocated_quantities:
-            self.execute_buy_signals(allocated_quantities, next_day_data)
-
-
-        print(f"Strategy {self.name} execution complete. Final Cash: {self.portfolio.cash:.2f}") # Basic print
