@@ -78,6 +78,10 @@ class Portfolio:
     def allowed_tradeable_items(self) -> list[TradeableItem]:
         return self._allowed_tradeable_items
 
+    @property
+    def start_date(self) -> date:
+        return self._start_date
+
     def has_position(self, tradeable_item: TradeableItem) -> bool:
         """
         Check if the portfolio has an open position for the given tradeable item.
@@ -129,7 +133,9 @@ class Portfolio:
 
         return True
 
-    def get_open_positions_by_item(self, tradeable_item: TradeableItem) -> list[PortfolioPosition]:
+    def get_open_positions_by_item(
+        self, tradeable_item: TradeableItem
+    ) -> list[PortfolioPosition]:
         """
         Get the list of open positions for a specific tradeable item.
         """
