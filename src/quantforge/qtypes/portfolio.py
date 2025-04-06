@@ -129,6 +129,12 @@ class Portfolio:
 
         return True
 
+    def get_open_positions_by_item(self, tradeable_item: TradeableItem) -> list[PortfolioPosition]:
+        """
+        Get the list of open positions for a specific tradeable item.
+        """
+        return self._open_positions_by_tradeable_item.get(tradeable_item, [])
+
     def close_position(
         self, position: PortfolioPosition, close_transaction: Transaction
     ) -> PortfolioPosition:
