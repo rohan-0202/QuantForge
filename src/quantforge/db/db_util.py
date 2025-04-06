@@ -50,7 +50,9 @@ def get_options_data(
         raise ValueError(f"No options data found for {ticker_symbol}")
 
     # Parse the timestamp column manually to avoid timezone issues
-    df["expiration_date"] = pd.to_datetime(df["expiration_date"], errors="coerce")
+    df["expiration_date"] = pd.to_datetime(
+        df["expiration_date"], errors="coerce", utc=True
+    )
 
     # Set expiration_date as index
     df.set_index("expiration_date", inplace=True)
