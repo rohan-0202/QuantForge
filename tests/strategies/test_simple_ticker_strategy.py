@@ -221,8 +221,8 @@ class TestSimpleTickerDataStrategy:
         initial_cash = strategy.portfolio.cash
         cash_per_item = initial_cash / 2
 
-        apple_price = next_day_prices[apple_stock]["open"]
-        msft_price = next_day_prices[microsoft_stock]["open"]
+        apple_price = next_day_prices[apple_stock].open
+        msft_price = next_day_prices[microsoft_stock].open
 
         expected_apple_qty = int(cash_per_item // apple_price)
         expected_msft_qty = int(cash_per_item // msft_price)
@@ -251,7 +251,7 @@ class TestSimpleTickerDataStrategy:
         limited_next_day_prices = {apple_stock: next_day_prices[apple_stock]}
 
         initial_cash = strategy.portfolio.cash
-        apple_price = limited_next_day_prices[apple_stock]["open"]
+        apple_price = limited_next_day_prices[apple_stock].open
 
         expected_apple_qty = int(initial_cash // apple_price)
 
@@ -265,7 +265,7 @@ class TestSimpleTickerDataStrategy:
     def test_execute_buy_signals(self, strategy, apple_stock, next_day_prices):
         """Test execution of buy signals."""
         initial_cash = strategy.portfolio.cash
-        apple_price = next_day_prices[apple_stock]["open"]
+        apple_price = next_day_prices[apple_stock].open
         quantity_to_buy = 10
         allocated_quantities = {apple_stock: quantity_to_buy}
 
@@ -296,7 +296,7 @@ class TestSimpleTickerDataStrategy:
         assert strategy.portfolio.has_position(apple_stock)
 
         sell_signals = {apple_stock: TradingSignal(TradingSignalType.SELL, -1.0)}
-        sell_price = next_day_prices[apple_stock]["open"]
+        sell_price = next_day_prices[apple_stock].open
 
         strategy.execute_sell_signals(sell_signals, next_day_prices)
 
@@ -329,7 +329,7 @@ class TestSimpleTickerDataStrategy:
             apple_stock: {DataRequirement.TICKER: sample_ticker_data_up}
         }
         initial_cash = strategy.portfolio.cash
-        apple_price = next_day_prices[apple_stock]["open"]
+        apple_price = next_day_prices[apple_stock].open
 
         assert not strategy.portfolio.has_position(apple_stock)
 
@@ -363,7 +363,7 @@ class TestSimpleTickerDataStrategy:
         input_data: StrategyInputData = {
             apple_stock: {DataRequirement.TICKER: sample_ticker_data_down}
         }
-        sell_price = next_day_prices[apple_stock]["open"]
+        sell_price = next_day_prices[apple_stock].open
 
         strategy.execute(input_data, next_day_prices)
 
@@ -387,7 +387,7 @@ class TestSimpleTickerDataStrategy:
             apple_stock: {DataRequirement.TICKER: sample_ticker_data_up}
         }
         initial_cash = strategy.portfolio.cash
-        apple_price = next_day_prices[apple_stock]["open"]
+        apple_price = next_day_prices[apple_stock].open
 
         strategy.execute(input_data, next_day_prices)
 

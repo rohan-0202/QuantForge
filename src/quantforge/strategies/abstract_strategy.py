@@ -59,8 +59,8 @@ class AbstractStrategy(ABC):
 
             # Access using TradeableItem key
             next_day_price_info = next_day_data[tradeable_item]
-            sell_price = next_day_price_info["open"]
-            sell_date = next_day_price_info["date"]
+            sell_price = next_day_price_info.open
+            sell_date = next_day_price_info.date
 
             for position in list(positions_to_close):
                 close_transaction = Transaction(
@@ -92,8 +92,8 @@ class AbstractStrategy(ABC):
 
             # Access using TradeableItem key
             next_day_price_info = next_day_data[tradeable_item]
-            buy_price = next_day_price_info["open"]
-            buy_date = next_day_price_info["date"]
+            buy_price = next_day_price_info.open
+            buy_date = next_day_price_info.date
 
             transaction = Transaction(
                 tradeable_item=tradeable_item,

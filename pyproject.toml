@@ -99,6 +99,5 @@ console_output_style = "progress"
 [tool.coverage.run]
 omit = [
     "src/quantforge/db/data_insertion.py", 
-    "src/quantforge/qtypes/ohlc.py",
     "src/quantforge/strategies/data_requirement.py"
     ]

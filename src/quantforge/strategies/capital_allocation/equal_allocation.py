@@ -28,7 +28,7 @@ def equal_allocation(
         # Check using TradeableItem key
         if item in next_day_data:
             # Access using TradeableItem key
-            price = next_day_data[item]["open"]
+            price = next_day_data[item].open
             if price > 0:
                 prices[item] = price
                 valid_buy_items.append(item)
