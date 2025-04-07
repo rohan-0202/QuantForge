@@ -27,4 +27,4 @@ class TestDataRequirement:
         """Verify that auto() assigns unique integer values (basic check)."""
         assert isinstance(DataRequirement.TICKER.value, int)
         assert isinstance(DataRequirement.NEWS.value, int)
-        assert DataRequirement.TICKER.value != DataRequirement.NEWS.value 
+        assert DataRequirement.TICKER.value != DataRequirement.NEWS.value
