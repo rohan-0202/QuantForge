@@ -15,9 +15,14 @@ StrategyInputData: TypeAlias = dict[TradeableItem, TradeableItemData]
 
 
 class AbstractStrategy(ABC):
-    def __init__(self, name: str, portfolio: Portfolio):
+    def __init__(self, name: str, portfolio: Portfolio, **kwargs):
         self._name = name
         self._portfolio = portfolio
+        self._params = kwargs
+
+    @property
+    def params(self) -> dict:
+        return self._params
 
     @property
     def name(self) -> str:

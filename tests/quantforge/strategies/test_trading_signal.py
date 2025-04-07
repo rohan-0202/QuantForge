@@ -68,7 +68,6 @@ class TestTradingSignal:
         signal_min = TradingSignal(TradingSignalType.BUY, 0.00001)
         assert signal_min.signal_strength == 0.00001
 
-
     def test_sell_signal_validation(self):
         """Test SELL signal validation constraints."""
         # Test lower bound (inclusive of -1, exclusive of 0)
@@ -91,7 +90,6 @@ class TestTradingSignal:
         signal_max = TradingSignal(TradingSignalType.SELL, -0.00001)
         assert signal_max.signal_strength == -0.00001
 
-
     def test_hold_signal_validation(self):
         """Test HOLD signal validation constraints."""
         # Test valid bounds [0, 1]
@@ -112,7 +110,6 @@ class TestTradingSignal:
         ):
             TradingSignal(TradingSignalType.HOLD, -0.1)
 
-
     def test_getter_methods(self):
         """Test the getter methods of TradingSignal."""
         buy_signal = TradingSignal(TradingSignalType.BUY, 0.75)
@@ -127,7 +124,11 @@ class TestTradingSignal:
     def test_immutability(self):
         """Test that the TradingSignal object is immutable."""
         signal = TradingSignal(TradingSignalType.BUY, 0.8)
-        with pytest.raises(AttributeError): # dataclasses.FrozenInstanceError inherits from AttributeError
+        with pytest.raises(
+            AttributeError
+        ):  # dataclasses.FrozenInstanceError inherits from AttributeError
             signal.signal_type = TradingSignalType.SELL
-        with pytest.raises(AttributeError): # dataclasses.FrozenInstanceError inherits from AttributeError
+        with pytest.raises(
+            AttributeError
+        ):  # dataclasses.FrozenInstanceError inherits from AttributeError
             signal.signal_strength = 0.2
