@@ -141,6 +141,17 @@ class Portfolio:
         """
         return self._open_positions_by_tradeable_item.get(tradeable_item, [])
 
+    def get_all_open_positions(self) -> list[PortfolioPosition]:
+        """Returns a flat list of all currently open positions across all items."""
+        all_positions = []
+        for positions_list in self._open_positions_by_tradeable_item.values():
+            all_positions.extend(positions_list)
+        return all_positions
+
+    def get_closed_positions(self) -> list[PortfolioPosition]:
+        """Returns a list of all closed positions."""
+        return self._closed_positions
+
     def close_position(
         self, position: PortfolioPosition, close_transaction: Transaction
     ) -> PortfolioPosition:
