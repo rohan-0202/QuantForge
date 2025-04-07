@@ -25,7 +25,7 @@ class RsiResult:
         return cls(valid=False, rsi=0.0, oversold=False, overbought=False)
 
 
-def calculate_rsi(data: pd.DataFrame, params: RsiParams) -> RsiResult:
+def calculate_rsi(data: pd.Series, params: RsiParams) -> RsiResult:
     if data.empty or len(data) < params.rsi_period:
         # Return invalid result if not enough data
         return RsiResult.invalid()
