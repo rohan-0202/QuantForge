@@ -311,3 +311,192 @@ class TestPortfolioPosition:
 
         assert position.is_closed
         assert position.realized_profit_loss() == 1980.0  # 16990 - 15010
+
+
+@pytest.mark.unit
+class TestShortPortfolioPosition:
+    """Unit tests for the PortfolioPosition class with short selling scenarios."""
+
+    @pytest.fixture
+    def tradeable_item(self):
+        """Return a tradeable item for testing."""
+        return TradeableItem(id="AAPL", asset_class=AssetClass.EQUITY)
+
+    @pytest.fixture
+    def short_open_transaction(self, tradeable_item):
+        """Return an open short transaction for testing."""
+        return Transaction(
+            tradeable_item=tradeable_item,
+            quantity=-100,  # Negative quantity for short selling
+            price=150.0,
+            date=date(2023, 1, 1),
+            transaction_cost=10.0,
+        )
+
+    @pytest.fixture
+    def short_close_transaction(self, tradeable_item):
+        """Return a close transaction for a short position."""
+        return Transaction(
+            tradeable_item=tradeable_item,
+            quantity=100,  # Positive quantity to close short position
+            price=130.0,  # Lower price for profitable short
+            date=date(2023, 1, 10),
+            transaction_cost=10.0,
+        )
+
+    @pytest.fixture
+    def short_open_position(self, short_open_transaction):
+        """Return an open short position for testing."""
+        return PortfolioPosition(open_transaction=short_open_transaction)
+
+    @pytest.fixture
+    def short_closed_position(self, short_open_transaction, short_close_transaction):
+        """Return a closed short position for testing."""
+        return PortfolioPosition(
+            open_transaction=short_open_transaction,
+            close_transaction=short_close_transaction,
+        )
+
+    def test_short_initialization(self, short_open_transaction):
+        """Test that a short PortfolioPosition can be properly initialized."""
+        position = PortfolioPosition(open_transaction=short_open_transaction)
+
+        assert position.open_transaction == short_open_transaction
+        assert position.close_transaction is None
+        assert position.open_transaction.quantity < 0  # Verify it's a short position
+
+    def test_short_cost_basis(self, short_open_position, short_open_transaction):
+        """Test the cost_basis property for a short position."""
+        # For shorts, cost basis is negative (money received minus transaction cost)
+        expected_cost_basis = (
+            short_open_transaction.price * short_open_transaction.quantity
+            + short_open_transaction.transaction_cost
+        )
+        assert short_open_position.cost_basis == expected_cost_basis
+        assert short_open_position.cost_basis == -14990.0  # 150 * (-100) + 10
+
+    def test_short_is_closed_property(self, short_open_position, short_closed_position):
+        """Test the is_closed property for short positions."""
+        assert not short_open_position.is_closed
+        assert short_closed_position.is_closed
+
+    def test_short_sale_proceeds(
+        self, short_open_position, short_closed_position, short_close_transaction
+    ):
+        """Test the sale_proceeds property for a short position."""
+        assert short_open_position.sale_proceeds == 0.0
+
+        # For shorts, the implementation calculates sale proceeds as:
+        # close_transaction.price * -close_transaction.quantity - close_transaction.transaction_cost
+        expected_proceeds = (
+            short_close_transaction.price * -short_close_transaction.quantity
+            - short_close_transaction.transaction_cost
+        )
+        assert short_closed_position.sale_proceeds == expected_proceeds
+        assert (
+            short_closed_position.sale_proceeds == -13010.0
+        )  # 130 * (-100) - 10 = -13010
+
+    def test_short_realized_profit_loss(
+        self, short_open_position, short_closed_position
+    ):
+        """Test the realized_profit_loss method for a short position."""
+        assert short_open_position.realized_profit_loss() == 0.0
+
+        # For short positions: sale_proceeds - cost_basis = -13010 - (-14990) = 1980
+        assert short_closed_position.realized_profit_loss() == 1980.0
+
+    def test_short_unrealized_profit_loss(
+        self, short_open_position, short_closed_position
+    ):
+        """Test the unrealized_profit_loss method for a short position."""
+        current_price = 140.0  # Lower than open price - profitable short
+
+        # For open short position: unrealized P/L is positive when price goes down
+        expected_unrealized_pl = (
+            current_price - short_open_position.open_transaction.price
+        ) * short_open_position.open_transaction.quantity
+        assert (
+            short_open_position.unrealized_profit_loss(current_price)
+            == expected_unrealized_pl
+        )
+        assert (
+            short_open_position.unrealized_profit_loss(current_price) == 1000.0
+        )  # (140 - 150) * (-100)
+
+        # Higher price - unprofitable short
+        current_price = 160.0
+        expected_unrealized_pl = (
+            current_price - short_open_position.open_transaction.price
+        ) * short_open_position.open_transaction.quantity
+        assert (
+            short_open_position.unrealized_profit_loss(current_price)
+            == expected_unrealized_pl
+        )
+        assert (
+            short_open_position.unrealized_profit_loss(current_price) == -1000.0
+        )  # (160 - 150) * (-100)
+
+        # For closed position
+        assert short_closed_position.unrealized_profit_loss(current_price) == 0.0
+
+    def test_short_close_method(self, short_open_position, tradeable_item):
+        """Test the close method for a short position."""
+        close_transaction = Transaction(
+            tradeable_item=tradeable_item,
+            quantity=100,  # Positive quantity to close short
+            price=120.0,  # Lower price for more profit
+            date=date(2023, 1, 15),
+            transaction_cost=15.0,
+        )
+
+        closed_position = short_open_position.close(close_transaction)
+
+        assert closed_position.is_closed
+        assert closed_position.open_transaction == short_open_position.open_transaction
+        assert closed_position.close_transaction == close_transaction
+        # Expected: sale_proceeds - cost_basis = (-12015) - (-14990) = 2975
+        assert closed_position.realized_profit_loss() == 2975.0
+
+    def test_short_close_with_already_closed_position(
+        self, short_closed_position, tradeable_item
+    ):
+        """Test that trying to close an already closed short position raises an error."""
+        another_close_transaction = Transaction(
+            tradeable_item=tradeable_item,
+            quantity=100,
+            price=110.0,
+            date=date(2023, 1, 20),
+            transaction_cost=15.0,
+        )
+
+        with pytest.raises(ValueError, match="Position is already closed."):
+            short_closed_position.close(another_close_transaction)
+
+    def test_short_close_with_wrong_quantity(self, short_open_position, tradeable_item):
+        """Test that trying to close a short with the wrong quantity raises an error."""
+        close_transaction = Transaction(
+            tradeable_item=tradeable_item,
+            quantity=50,  # Not matching the open quantity magnitude
+            price=120.0,
+            date=date(2023, 1, 15),
+            transaction_cost=15.0,
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Close transaction quantity must be the -ve open transaction quantity.",
+        ):
+            short_open_position.close(close_transaction)
+
+    def test_short_string_representation(
+        self, short_open_position, short_closed_position
+    ):
+        """Test the string representation of a short PortfolioPosition."""
+        assert "PortfolioPosition:" in str(short_open_position)
+        assert "Closed: False" in str(short_open_position)
+        assert "Realized P/L: 0.0" in str(short_open_position)
+
+        assert "PortfolioPosition:" in str(short_closed_position)
+        assert "Closed: True" in str(short_closed_position)
+        assert "Realized P/L: 1980.0" in str(short_closed_position)
