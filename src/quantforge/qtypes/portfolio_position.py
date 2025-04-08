@@ -131,3 +131,36 @@ class PortfolioPosition:
         Detailed representation showing the internal state of the position object.
         """
         return f"PortfolioPosition(open_transaction={self.open_transaction}, close_transaction={self.close_transaction})"
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "PortfolioPosition":
+        """
+        Create a PortfolioPosition instance from a dictionary.
+
+        Args:
+        data (dict): A dictionary containing the PortfolioPosition's attributes.
+
+        Returns:
+        PortfolioPosition: A new PortfolioPosition instance.
+
+        Raises:
+        ValueError: If the dictionary is missing required fields or contains invalid values.
+        """
+        # Check for required fields
+        if "open_transaction" not in data:
+            raise ValueError("Dictionary must contain 'open_transaction' field")
+
+        # Handle open_transaction if it's a dictionary
+        open_transaction = data["open_transaction"]
+        if isinstance(open_transaction, dict):
+            open_transaction = Transaction.from_dict(open_transaction)
+
+        # Handle close_transaction if it's a dictionary
+        close_transaction = data.get("close_transaction")
+        if close_transaction is not None and isinstance(close_transaction, dict):
+            close_transaction = Transaction.from_dict(close_transaction)
+
+        # Create the portfolio position
+        return cls(
+            open_transaction=open_transaction, close_transaction=close_transaction
+        )
