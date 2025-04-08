@@ -2,12 +2,28 @@ from quantforge.backtesting.backtest_config import BacktestConfig
 import click
 import json
 import logging
+from quantforge.strategies.strategy_factory import StrategyFactory
+from quantforge.backtesting.backtest_dataloader import load_data
 
 logger = logging.getLogger(__name__)
 
 
 def run_backtest(config: BacktestConfig):
-    pass
+    """
+    Run a backtest using a configuration file.
+
+    Args:
+        config (BacktestConfig): The backtest configuration.
+    """
+    # Ensure we can load the strategy. Use the strategy factory to load the strategy.
+    strategy = StrategyFactory.create_strategy(config.strategy_name)
+
+    # now get the data requirements of the strategy
+    data_requirements, lookback_days = strategy.get_data_requirements()
+
+    # now given the data requirements and the tradaable items in the portfolio,
+    # load the appropriate data
+    _ = load_data(data_requirements, lookback_days, config.initial_portfolio)
 
 
 @click.command()

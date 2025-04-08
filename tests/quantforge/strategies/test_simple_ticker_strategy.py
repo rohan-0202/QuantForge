@@ -117,7 +117,9 @@ class TestSimpleTickerDataStrategy:
 
     def test_get_data_requirements(self, strategy):
         """Verify the strategy requires TICKER data."""
-        assert strategy.get_data_requirements() == [DataRequirement.TICKER]
+        requirements, lookback = strategy.get_data_requirements()
+        assert requirements == [DataRequirement.TICKER]
+        assert lookback == 1
 
     def test_generate_buy_signal(self, strategy, apple_stock, sample_ticker_data_up):
         """Test generating a BUY signal when close price increases."""

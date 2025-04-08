@@ -39,7 +39,10 @@ class AbstractStrategy(ABC):
         pass
 
     @abstractmethod
-    def get_data_requirements(self) -> list[DataRequirement]:
+    def get_data_requirements(self) -> tuple[list[DataRequirement], int]:
+        """
+        Returns a tuple containing a list of data requirements and a number of days to look back.
+        """
         pass
 
     def execute_sell_signals(
@@ -137,7 +140,8 @@ class AbstractStrategy(ABC):
             if tradeable_item not in input_data:
                 # This case might be handled depending on strategy logic - skipping check if not in input
                 continue
-            for data_requirement in self.get_data_requirements():
+            requirements, _ = self.get_data_requirements()
+            for data_requirement in requirements:
                 if (
                     data_requirement not in input_data[tradeable_item]
                     or input_data[tradeable_item][data_requirement] is None
