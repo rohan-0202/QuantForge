@@ -1,5 +1,6 @@
 import pytest
 from datetime import date
+from dataclasses import asdict
 
 from quantforge.qtypes.assetclass import AssetClass
 from quantforge.qtypes.portfolio_position import PortfolioPosition
@@ -220,6 +221,96 @@ class TestPortfolioPosition:
 
         with pytest.raises(AttributeError):
             open_position.close_transaction = None
+
+    def test_from_dict_open_position(self, open_position):
+        """Test creating a PortfolioPosition from a dictionary with only an open transaction."""
+        # Convert to dictionary
+        position_dict = asdict(open_position)
+
+        # Convert back to PortfolioPosition
+        reconstructed_position = PortfolioPosition.from_dict(position_dict)
+
+        # Verify the reconstructed position matches the original
+        assert reconstructed_position.open_transaction == open_position.open_transaction
+        assert reconstructed_position.close_transaction is None
+        assert reconstructed_position.is_closed == open_position.is_closed
+        assert reconstructed_position.cost_basis == open_position.cost_basis
+
+    def test_from_dict_closed_position(self, closed_position):
+        """Test creating a PortfolioPosition from a dictionary with both open and close transactions."""
+        # Convert to dictionary
+        position_dict = asdict(closed_position)
+
+        # Convert back to PortfolioPosition
+        reconstructed_position = PortfolioPosition.from_dict(position_dict)
+
+        # Verify the reconstructed position matches the original
+        assert (
+            reconstructed_position.open_transaction == closed_position.open_transaction
+        )
+        assert (
+            reconstructed_position.close_transaction
+            == closed_position.close_transaction
+        )
+        assert reconstructed_position.is_closed == closed_position.is_closed
+        assert reconstructed_position.cost_basis == closed_position.cost_basis
+        assert reconstructed_position.sale_proceeds == closed_position.sale_proceeds
+        assert (
+            reconstructed_position.realized_profit_loss()
+            == closed_position.realized_profit_loss()
+        )
+
+    def test_from_dict_missing_required_field(self):
+        """Test that from_dict raises an error when a required field is missing."""
+        with pytest.raises(
+            ValueError, match="Dictionary must contain 'open_transaction' field"
+        ):
+            PortfolioPosition.from_dict({})
+
+    def test_from_dict_with_transaction_dicts(self, tradeable_item):
+        """Test creating a PortfolioPosition from a dictionary with transaction dictionaries."""
+        # Create a dictionary with transaction dictionaries
+        position_dict = {
+            "open_transaction": {
+                "tradeable_item": {
+                    "id": tradeable_item.id,
+                    "asset_class": tradeable_item.asset_class,
+                },
+                "quantity": 100,
+                "price": 150.0,
+                "date": date(2023, 1, 1),
+                "transaction_cost": 10.0,
+            },
+            "close_transaction": {
+                "tradeable_item": {
+                    "id": tradeable_item.id,
+                    "asset_class": tradeable_item.asset_class,
+                },
+                "quantity": -100,
+                "price": 170.0,
+                "date": date(2023, 1, 10),
+                "transaction_cost": 10.0,
+            },
+        }
+
+        # Convert to PortfolioPosition
+        position = PortfolioPosition.from_dict(position_dict)
+
+        # Verify the position was created correctly
+        assert position.open_transaction.quantity == 100
+        assert position.open_transaction.price == 150.0
+        assert position.open_transaction.date == date(2023, 1, 1)
+        assert position.open_transaction.transaction_cost == 10.0
+        assert position.open_transaction.tradeable_item.id == tradeable_item.id
+
+        assert position.close_transaction.quantity == -100
+        assert position.close_transaction.price == 170.0
+        assert position.close_transaction.date == date(2023, 1, 10)
+        assert position.close_transaction.transaction_cost == 10.0
+        assert position.close_transaction.tradeable_item.id == tradeable_item.id
+
+        assert position.is_closed
+        assert position.realized_profit_loss() == 1980.0  # 16990 - 15010
 
 
 @pytest.mark.unit

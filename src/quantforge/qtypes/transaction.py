@@ -43,3 +43,49 @@ class Transaction:
             f"Transaction(tradeable_item={self.tradeable_item}, quantity={self.quantity}, "
             f"price={self.price}, date={self.date}, transaction_cost={self.transaction_cost})"
         )
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Transaction":
+        """
+        Create a Transaction instance from a dictionary.
+
+        Args:
+        data (dict): A dictionary containing the Transaction's attributes.
+
+        Returns:
+        Transaction: A new Transaction instance.
+
+        Raises:
+        ValueError: If the dictionary is missing required fields or contains invalid values.
+        """
+        # Check for required fields
+        required_fields = ["tradeable_item", "quantity", "price", "date"]
+        for required_field in required_fields:
+            if required_field not in data:
+                raise ValueError(f"Dictionary must contain '{required_field}' field")
+
+        # Handle tradeable_item if it's a dictionary
+        tradeable_item = data["tradeable_item"]
+        if isinstance(tradeable_item, dict):
+            tradeable_item = TradeableItem.from_dict(tradeable_item)
+
+        # Handle date if it's a string
+        transaction_date = data["date"]
+        if isinstance(transaction_date, str):
+            try:
+                # Assuming format YYYY-MM-DD
+                year, month, day = map(int, transaction_date.split("-"))
+                transaction_date = date(year, month, day)
+            except (ValueError, AttributeError) as err:
+                raise ValueError(
+                    f"Invalid date format: {transaction_date}. Expected YYYY-MM-DD"
+                ) from err
+
+        # Create the transaction
+        return cls(
+            tradeable_item=tradeable_item,
+            quantity=data["quantity"],
+            price=data["price"],
+            date=transaction_date,
+            transaction_cost=data.get("transaction_cost", 0.0),
+        )
