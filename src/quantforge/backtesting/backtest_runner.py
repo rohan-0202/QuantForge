@@ -22,7 +22,7 @@ def run_backtest(config: BacktestConfig):
 
     # now given the data requirements and the tradaable items in the portfolio,
     # load the appropriate data
-    _: StrategyInputData = load_data(strategy, config.initial_portfolio)
+    _: StrategyInputData = load_data(config, strategy, config.initial_portfolio)
 
     # now that we have loaded the data we can iterate over the days and run the strategy
     # we will start from the first day of the portfolio and go till config.end_date
