@@ -5,7 +5,7 @@ from quantforge.qtypes.ohlc import OHLCData
 from quantforge.strategies.data_requirement import DataRequirement
 from datetime import date
 from loguru import logger
-from quantforge.db.df_columns import TIMESTAMP, OPEN, HIGH, LOW, CLOSE, VOLUME
+from quantforge.db.df_columns import OPEN, HIGH, LOW, CLOSE, VOLUME
 
 
 def extract_ohlc_data(
@@ -36,7 +36,7 @@ def extract_ohlc_data(
 
         ticker_data = input_data[tradeable_item][DataRequirement.TICKER]
         # get the ohlc data for the date data_date
-        date_data = ticker_data[ticker_data[TIMESTAMP].dt.date == data_date]
+        date_data = ticker_data[ticker_data.index.date == data_date]
         if date_data.empty:
             logger.warning(f"No data found for {tradeable_item} on {data_date}")
             continue

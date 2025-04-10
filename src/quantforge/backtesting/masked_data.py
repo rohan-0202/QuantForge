@@ -1,42 +1,53 @@
 import pandas as pd
 from quantforge.strategies.abstract_strategy import StrategyInputData
+from quantforge.strategies.data_requirement import DataRequirement
+from quantforge.db.df_columns import TIMESTAMP, LAST_UPDATED
+from datetime import date
 
 
-def create_masked_data(input_data: StrategyInputData, cutoff_date) -> StrategyInputData:
+def create_masked_data(
+    input_data: StrategyInputData, cutoff_date: date
+) -> StrategyInputData:
     """
     Create a masked version of input_data that only includes data up to cutoff_date.
     Handles ticker data (timestamp index) and options data (last_updated column) differently.
     """
+    # Convert cutoff_date to pandas Timestamp with UTC timezone for proper comparison
+    pd_cutoff_date = pd.Timestamp(cutoff_date, tz="UTC")
+
     masked_data = {}
 
     for tradeable_item, item_data in input_data.items():
         masked_item_data = {}
 
         for data_requirement, df in item_data.items():
-            # Case 1: Regular ticker data with timestamp as index
-            if isinstance(df.index, pd.DatetimeIndex) and df.index.name == "timestamp":
-                masked_df = df.loc[df.index <= cutoff_date]
-
-            # Case 2: Options data where last_updated is the relevant column (not the index)
-            elif "last_updated" in df.columns:
-                masked_df = df[df["last_updated"] <= cutoff_date]
-
-            # Case 3: Any other DataFrame with DatetimeIndex
-            elif isinstance(df.index, pd.DatetimeIndex):
-                masked_df = df.loc[df.index <= cutoff_date]
-
-            # Case 4: Fallback - look for date-like columns
-            else:
-                date_cols = [
-                    col
-                    for col in df.columns
-                    if col.lower() in ["date", "timestamp", "datetime"]
-                ]
-                if date_cols:
-                    masked_df = df[df[date_cols[0]] <= cutoff_date]
+            # Case 1: TICKER data - use timestamp
+            if data_requirement == DataRequirement.TICKER:
+                if (
+                    isinstance(df.index, pd.DatetimeIndex)
+                    and df.index.name == TIMESTAMP
+                ):
+                    masked_df = df.loc[df.index <= pd_cutoff_date]
                 else:
-                    # If no date column found, return the DataFrame as is
-                    masked_df = df
+                    # For TICKER data that doesn't have the expected structure
+                    raise ValueError(
+                        f"TICKER data for {tradeable_item} does not have timestamp index"
+                    )
+
+            # Case 2: OPTIONS data - use last_updated column
+            elif data_requirement == DataRequirement.OPTIONS:
+                if LAST_UPDATED in df.columns:
+                    masked_df = df[df[LAST_UPDATED] <= pd_cutoff_date]
+                else:
+                    raise ValueError(
+                        f"OPTIONS data for {tradeable_item} does not have last_updated column"
+                    )
+
+            # Case 3: Not implemented for other data requirements
+            else:
+                raise NotImplementedError(
+                    f"Masking not implemented for data requirement: {data_requirement}"
+                )
 
             masked_item_data[data_requirement] = masked_df
 

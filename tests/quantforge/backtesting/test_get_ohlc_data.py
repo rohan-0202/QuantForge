@@ -41,7 +41,7 @@ class TestGetOHLCData:
     @pytest.fixture
     def valid_ticker_data(self, sample_date, next_date):
         """Create mock ticker data for two dates"""
-        return pd.DataFrame(
+        df = pd.DataFrame(
             {
                 TIMESTAMP: [
                     datetime.combine(sample_date, datetime.min.time()),
@@ -54,6 +54,9 @@ class TestGetOHLCData:
                 VOLUME: [1000000, 1100000],
             }
         )
+        # Set timestamp as index to match db_util.py behavior
+        df.set_index(TIMESTAMP, inplace=True)
+        return df
 
     @pytest.fixture
     def strategy_input_data(self, tradeable_item1, tradeable_item2, valid_ticker_data):
@@ -175,6 +178,8 @@ class TestGetOHLCData:
                 VOLUME: [1000000],
             }
         )
+        # Set timestamp as index to match db_util.py behavior
+        df.set_index(TIMESTAMP, inplace=True)
 
         item_data[DataRequirement.TICKER] = df
         invalid_data[tradeable_item1] = item_data
