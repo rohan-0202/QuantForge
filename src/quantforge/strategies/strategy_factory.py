@@ -1,5 +1,6 @@
 import inspect
-import sys
+import os
+import importlib
 from typing import Type
 
 from quantforge.strategies.abstract_strategy import AbstractStrategy
@@ -56,28 +57,35 @@ class StrategyFactory:
         Returns:
             A list of strategy classes
         """
-
-        # Add the strategies package to get all potential strategy modules
-
         strategy_classes = []
 
-        # Inspect all modules in the strategies package and its subpackages
-        for module_name, module in sys.modules.items():
-            if (
-                module_name.startswith("quantforge.strategies.")
-                and module_name != "quantforge.strategies.abstract_strategy"
-            ):
+        # Get the directory of the strategies package
+        strategies_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Import all modules in the strategies package
+        for filename in os.listdir(strategies_dir):
+            if filename.endswith(".py") and not filename.startswith("__"):
+                module_name = filename[:-3]  # Remove .py extension
+
+                # Skip the abstract_strategy module
+                if module_name == "abstract_strategy":
+                    continue
+
+                # Import the module
                 try:
+                    module_path = f"quantforge.strategies.{module_name}"
+                    module = importlib.import_module(module_path)
+
+                    # Find all classes in the module that inherit from AbstractStrategy
                     for _, obj in inspect.getmembers(module):
-                        # Check if it's a class and inherits from AbstractStrategy (directly or indirectly)
                         if (
                             inspect.isclass(obj)
                             and issubclass(obj, AbstractStrategy)
                             and obj != AbstractStrategy
                         ):
                             strategy_classes.append(obj)
-                except Exception:
-                    # Skip modules that can't be inspected
+                except Exception as e:
+                    print(f"Error importing module {module_name}: {e}")
                     continue
 
         return strategy_classes
@@ -92,3 +100,7 @@ class StrategyFactory:
         """
         strategy_classes = StrategyFactory._get_all_strategy_classes()
         return [cls.__name__ for cls in strategy_classes]
+
+
+if __name__ == "__main__":
+    print(StrategyFactory.get_available_strategies())

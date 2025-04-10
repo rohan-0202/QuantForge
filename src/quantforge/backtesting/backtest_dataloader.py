@@ -1,10 +1,11 @@
 from quantforge.strategies.data_requirement import DataRequirement
 from quantforge.qtypes.portfolio import Portfolio
 from quantforge.qtypes.tradeable_item import TradeableItem
-from quantforge.strategies.abstract_strategy import StrategyInputData
+from quantforge.strategies.abstract_strategy import StrategyInputData, AbstractStrategy
 import pandas as pd
 from quantforge.db.db_util import get_historical_data, get_options_data
-from datetime import timedelta
+from datetime import timedelta, datetime
+from loguru import logger
 
 
 def load_requirement_data(
@@ -25,26 +26,30 @@ def load_requirement_data(
         )
 
 
-def load_data(
-    data_requirements: list[DataRequirement], lookback_days: int, portfolio: Portfolio
-) -> StrategyInputData:
+def load_data(strategy: AbstractStrategy, portfolio: Portfolio) -> StrategyInputData:
     """
     Load the data for the given data requirements and portfolio.
 
     This method combines the functionality of loading data for each requirement and
     each tradeable item in the portfolio.
     """
+    # now get the data requirements of the strategy
+    data_requirements, lookback_days = strategy.get_data_requirements()
     data: StrategyInputData = {}
     # lookbackdays is really the day the portfolio starts - the lookbackdays
-    lookback_days = portfolio.start_date - timedelta(days=lookback_days)
-    for tradeable_item in portfolio.tradeable_items:
+    lookback_start_date = portfolio.start_date - timedelta(days=lookback_days)
+    days_to_load = (datetime.now().date() - lookback_start_date).days
+    logger.info(f"Loading data for portfolio from {days_to_load} days ago")
+    for tradeable_item in portfolio.allowed_tradeable_items:
         tradeable_item_data = {}
-
+        logger.info(f"Loading data for tradeable item {tradeable_item}")
         for data_requirement in data_requirements:
             # Load data for the specific requirement and tradeable item
-            # Implementation pending
+            logger.info(
+                f"Loading data for data requirement {data_requirement} for tradeable item {tradeable_item} for {days_to_load} days"
+            )
             tradeable_item_data[data_requirement] = load_requirement_data(
-                data_requirement, lookback_days, tradeable_item
+                data_requirement, days_to_load, tradeable_item
             )
 
         data[tradeable_item] = tradeable_item_data

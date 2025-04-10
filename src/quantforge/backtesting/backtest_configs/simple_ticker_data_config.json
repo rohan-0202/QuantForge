@@ -1,0 +1,22 @@
+{
+    "end_date": "2023-12-31",
+    "initial_portfolio": {
+        "_cash": 50000.0,
+        "_start_date": "2023-01-01",
+        "_allow_margin": false,
+        "_allow_short": false,
+        "_allowed_tradeable_items": [
+            {
+                "id": "AAPL",
+                "asset_class": "EQUITY"
+            },
+            {
+                "id": "MSFT",
+                "asset_class": "EQUITY"
+            }
+        ],
+        "_closed_positions": [],
+        "_open_positions_by_tradeable_item": []
+    },
+    "strategy_name": "SimpleTickerDataStrategy"
+}
