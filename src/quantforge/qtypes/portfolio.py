@@ -82,6 +82,11 @@ class Portfolio:
     def start_date(self) -> date:
         return self._start_date
 
+    @property
+    def closed_positions(self) -> list[PortfolioPosition]:
+        """Return the list of closed positions."""
+        return self._closed_positions
+
     def has_position(self, tradeable_item: TradeableItem) -> bool:
         """
         Check if the portfolio has an open position for the given tradeable item.

@@ -1,6 +1,5 @@
 import pytest
-import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from quantforge.strategies.strategy_factory import StrategyFactory
 from quantforge.strategies.abstract_strategy import AbstractStrategy
@@ -26,26 +25,62 @@ class DummyTestStrategy(AbstractStrategy):
         return {}
 
 
-# Add the dummy strategy to sys.modules so it can be discovered
-# This simulates the strategy being in a proper module
-sys.modules["quantforge.strategies.test_dummy_strategy"] = sys.modules[__name__]
-
-
 class TestStrategyFactory:
     @pytest.fixture
     def portfolio(self):
         """Create a mock portfolio for testing."""
         return MagicMock(spec=Portfolio)
 
-    def test_get_available_strategies(self):
+    @pytest.fixture
+    def mock_strategy_modules(self):
+        """Mock the strategy modules to control what's available for testing."""
+        # Create a mock module for our dummy strategy
+        mock_module = MagicMock()
+        mock_module.DummyTestStrategy = DummyTestStrategy
+
+        # Create a mock module for SimpleTickerDataStrategy
+        simple_ticker_module = MagicMock()
+        simple_ticker_module.SimpleTickerDataStrategy = SimpleTickerDataStrategy
+
+        # Create a mock module for AbstractStrategy
+        abstract_module = MagicMock()
+        abstract_module.AbstractStrategy = AbstractStrategy
+
+        # Create a mock for os.listdir to return our test files
+        with patch("os.listdir") as mock_listdir:
+            mock_listdir.return_value = [
+                "simple_ticker_strategy.py",
+                "test_dummy_strategy.py",
+                "abstract_strategy.py",
+                "__init__.py",
+            ]
+
+            # Create a mock for importlib.import_module
+            with patch("importlib.import_module") as mock_import:
+                # Set up the mock to return our mock modules
+                def mock_import_side_effect(module_path):
+                    if module_path == "quantforge.strategies.simple_ticker_strategy":
+                        return simple_ticker_module
+                    elif module_path == "quantforge.strategies.test_dummy_strategy":
+                        return mock_module
+                    elif module_path == "quantforge.strategies.abstract_strategy":
+                        return abstract_module
+                    else:
+                        raise ImportError(f"Module {module_path} not found")
+
+                mock_import.side_effect = mock_import_side_effect
+
+                yield
+
+    def test_get_available_strategies(self, mock_strategy_modules):
         """Test that the factory can discover available strategies."""
         strategies = StrategyFactory.get_available_strategies()
 
-        # The list should at least contain our two known strategies
+        # The list should contain our two known strategies
         assert "SimpleTickerDataStrategy" in strategies
         assert "DummyTestStrategy" in strategies
 
-    def test_create_existing_strategy(self, portfolio):
+    def test_create_existing_strategy(self, portfolio, mock_strategy_modules):
         """Test that the factory can create an existing strategy."""
         strategy = StrategyFactory.create_strategy(
             "SimpleTickerDataStrategy", portfolio
@@ -55,7 +90,7 @@ class TestStrategyFactory:
         assert isinstance(strategy, SimpleTickerDataStrategy)
         assert strategy.portfolio == portfolio
 
-    def test_create_test_strategy(self, portfolio):
+    def test_create_test_strategy(self, portfolio, mock_strategy_modules):
         """Test that the factory can create our test strategy."""
         # Test with default parameters
         strategy = StrategyFactory.create_strategy("DummyTestStrategy", portfolio)
@@ -69,7 +104,7 @@ class TestStrategyFactory:
         )
         assert strategy.test_param == "custom"
 
-    def test_strategy_not_found(self, portfolio):
+    def test_strategy_not_found(self, portfolio, mock_strategy_modules):
         """Test that the factory raises an error for non-existent strategies."""
         with pytest.raises(ValueError) as excinfo:
             StrategyFactory.create_strategy("NonExistentStrategy", portfolio)
@@ -80,7 +115,7 @@ class TestStrategyFactory:
         assert "SimpleTickerDataStrategy" in str(excinfo.value)
         assert "DummyTestStrategy" in str(excinfo.value)
 
-    def test_get_all_strategy_classes(self):
+    def test_get_all_strategy_classes(self, mock_strategy_modules):
         """Test the internal method to get all strategy classes."""
         strategy_classes = StrategyFactory._get_all_strategy_classes()
 

@@ -31,4 +31,8 @@ get_data_for_ticker:
 	uv run python src/quantforge/db/create_database.py
 	uv run python src/quantforge/db/data_insertion.py --ticker $(ticker)
 
+run-backtest:
+	$(eval config=$(word 2,$(MAKECMDGOALS)))
+	uv run python src/quantforge/backtesting/backtest_runner.py --config $(config)
+
 

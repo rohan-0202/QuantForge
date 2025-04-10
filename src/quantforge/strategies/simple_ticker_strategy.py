@@ -52,8 +52,8 @@ class SimpleTickerDataStrategy(AbstractStrategy):
 
         return signals
 
-    def get_data_requirements(self) -> list[DataRequirement]:
-        return [DataRequirement.TICKER]
+    def get_data_requirements(self) -> tuple[list[DataRequirement], int]:
+        return [DataRequirement.TICKER], 1
 
     def allocate_capital(
         self,

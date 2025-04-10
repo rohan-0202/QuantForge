@@ -1,11 +1,14 @@
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, date
 
 import pandas as pd
 
 
-def get_options_data(
-    ticker_symbol: str, db_name: str = "stock_data.db", days: int = 365
+def fetch_historical_options_data(
+    ticker_symbol: str,
+    start_date: date,
+    end_date: date = None,
+    db_name: str = "stock_data.db",
 ) -> pd.DataFrame:
     """Fetch options data for a ticker from the database.
     CREATE TABLE IF NOT EXISTS options_data (
@@ -25,23 +28,28 @@ def get_options_data(
     )
 
     """
-    conn = sqlite3.connect(db_name)
+    if end_date is None:
+        end_date = datetime.now().date()
 
-    # Calculate the date range
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=days)
+    conn = sqlite3.connect(db_name)
 
     # Query to get data from options table
     query = """
         SELECT expiration_date, option_type, strike, last_price, bid, ask, volume, open_interest, implied_volatility, last_updated
         FROM options_data
-        WHERE ticker = ? AND expiration_date >= ?
+        WHERE ticker = ? AND last_updated >= ? AND last_updated <= ?
         ORDER BY expiration_date ASC
     """
 
     # First, get the data without parsing dates
     df = pd.read_sql_query(
-        query, conn, params=(ticker_symbol, start_date.strftime("%Y-%m-%d"))
+        query,
+        conn,
+        params=(
+            ticker_symbol,
+            start_date.strftime("%Y-%m-%d"),
+            end_date.strftime("%Y-%m-%d"),
+        ),
     )
 
     conn.close()
@@ -60,33 +68,43 @@ def get_options_data(
     return df
 
 
-def get_historical_data(
-    ticker_symbol: str, db_name: str = "stock_data.db", days: int = 365
+def fetch_historical_ticker_data(
+    ticker_symbol: str,
+    start_date: date,
+    end_date: date = None,
+    db_name: str = "stock_data.db",
 ) -> pd.DataFrame:
-    """Fetch historical price data for a ticker from the database."""
-    conn = sqlite3.connect(db_name)
+    """Helper function to fetch historical price data with date range parameters."""
+    if end_date is None:
+        end_date = datetime.now().date()
 
-    # Calculate the date range
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=days)
+    conn = sqlite3.connect(db_name)
 
     # Query to get data
     query = """
     SELECT timestamp, open, high, low, close, volume
     FROM historical_prices
-    WHERE ticker = ? AND timestamp >= ?
+    WHERE ticker = ? AND timestamp >= ? AND timestamp <= ?
     ORDER BY timestamp ASC
     """
 
-    # First, get the data without parsing dates
+    # Get the data for the specified date range
     df = pd.read_sql_query(
-        query, conn, params=(ticker_symbol, start_date.strftime("%Y-%m-%d"))
+        query,
+        conn,
+        params=(
+            ticker_symbol,
+            start_date.strftime("%Y-%m-%d"),
+            end_date.strftime("%Y-%m-%d"),
+        ),
     )
 
     conn.close()
 
     if df.empty:
-        raise ValueError(f"No historical data found for {ticker_symbol}")
+        raise ValueError(
+            f"No historical data found for {ticker_symbol} between {start_date.strftime('%Y-%m-%d')} and {end_date.strftime('%Y-%m-%d')}"
+        )
 
     # Parse the timestamp column manually to avoid timezone issues
     df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce", utc=True)
