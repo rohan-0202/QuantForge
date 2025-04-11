@@ -549,9 +549,9 @@ def save_options_data(ticker_symbol, db_name="stock_data.db"):
         # If we updated options data within the last day, skip
         if latest_update_result:
             latest_update = parse_db_datetime(latest_update_result)
-            if latest_update and (datetime.now() - latest_update).days < 1:
+            if latest_update and (datetime.now() - latest_update) < timedelta(hours=8):
                 print(
-                    f"Options data for {ticker_symbol} already updated within the last day. Skipping."
+                    f"Options data for {ticker_symbol} already updated within the last 8 hours. Skipping."
                 )
                 conn.close()
                 return

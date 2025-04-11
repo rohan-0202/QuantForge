@@ -11,6 +11,14 @@ from quantforge.backtesting.masked_data import create_masked_data
 from quantforge.backtesting.get_ohlc_data import extract_ohlc_data
 from quantforge.strategies.abstract_strategy import AbstractStrategy
 from datetime import date
+from quantforge.qtypes.tradeable_item import TradeableItem
+from quantforge.qtypes.ohlc import OHLCData
+
+
+def extract_prices(data: dict[TradeableItem, OHLCData]) -> dict[TradeableItem, float]:
+    if data is None:
+        return {}
+    return {item: data[item].close for item in data}
 
 
 def backtest_loop(
@@ -33,7 +41,13 @@ def backtest_loop(
         if i < len(filtered_trading_dates) - 1:
             next_date = filtered_trading_dates[i + 1]
             next_day_data = extract_ohlc_data(input_data, strategy.portfolio, next_date)
-
+            # current_date_data = extract_ohlc_data(
+            #     input_data, strategy.portfolio, current_date
+            # )
+            # prices = extract_prices(current_date_data)
+            # if prices:
+            #     portfolio_value = strategy.portfolio.portfolio_value(prices)
+            #     logger.info(f"Portfolio value on {current_date}: {portfolio_value}")
             # Execute the strategy for the current date
             if next_day_data:  # Only execute if we have next day data
                 strategy.execute(masked_data, next_day_data)
