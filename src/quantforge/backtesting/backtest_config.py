@@ -12,6 +12,7 @@ class BacktestConfig:
     initial_portfolio: Portfolio
     strategy_name: str
     end_date: Optional[date] = None
+    strategy_params: Optional[dict] = None
 
     def __post_init__(self):
         """
@@ -63,4 +64,5 @@ class BacktestConfig:
             initial_portfolio=initial_portfolio,
             strategy_name=data["strategy_name"],
             end_date=end_date,
+            strategy_params=data.get("strategy_params")
         )
