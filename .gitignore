@@ -178,3 +178,19 @@ poetry.lock
 activate/
 stock_data.db
 .vscode/
+
+# Next.js specific entries
+node_modules/
+/.next/
+/out/
+.env*.local
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+.DS_Store
+*.pem
